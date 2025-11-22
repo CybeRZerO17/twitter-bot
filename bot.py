@@ -1,6 +1,5 @@
 import tweepy
 import openai
-import time
 import os
 
 # ---- API KEYS ----
@@ -23,7 +22,7 @@ client = tweepy.Client(
 )
 
 # ---- Takip edilecek hesaplar ----
-TARGET_USERS = ["@drkaanyl"]  # İstersen daha sonra ekleyebilirsin
+TARGET_USERS = ["@drkaanyl"]
 
 def generate_comment(tweet_text):
     prompt = f"""
@@ -40,25 +39,35 @@ def generate_comment(tweet_text):
     )
     return response.choices[0].message["content"]
 
-
 def main():
+    tweeted = False
     for username in TARGET_USERS:
         try:
             user = client.get_user(username=username)
             uid = user.data.id
             tweets = client.get_users_tweets(uid, max_results=5)
 
-            if tweets.data:
-                tweet = tweets.data[0]
-                comment = generate_comment(tweet.text)
+            # Eğer kullanıcı tweet atmamışsa test tweeti gönder
+            if not tweets.data:
+                print("No recent tweets, sending test tweet...")
+                client.create_tweet(text="This is a test tweet from my bot 🚀")
+                tweeted = True
+                break
 
-                client.create_tweet(
-                    text=comment,
-                    quote_tweet_id=tweet.id
-                )
+            # Normal tweet varsa
+            tweet = tweets.data[0]
+            comment = generate_comment(tweet.text)
+            client.create_tweet(
+                text=comment,
+                quote_tweet_id=tweet.id
+            )
+            tweeted = True
 
         except Exception as e:
             print("Error:", e)
+
+    if not tweeted:
+        print("No tweet sent.")
 
 if __name__ == "__main__":
     main()
